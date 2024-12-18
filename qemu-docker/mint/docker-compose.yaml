@@ -1,0 +1,24 @@
+services:
+  qemu:
+    container_name: qemu-mint
+    image: qemux/qemu-docker
+    environment:
+      BOOT: "https://mirror.hyperdedic.ru/linuxmint/stable/22/linuxmint-22-cinnamon-64bit.iso"
+      DISK_SIZE: "32G"
+      DISK2_SIZE: "2G"
+      DISK3_SIZE: "2G"
+      RAM_SIZE: "6G"
+      CPU_CORES: "4"
+    devices:
+      - /dev/kvm
+      - /dev/net/tun
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - 8006:8006
+    volumes:
+      - C:\Users\pyramidheadshark\Disks\mint-docker:/mnt/c/Users/pyramidheadshark/Disks/mint-docker
+      - C:\Users\pyramidheadshark\Disks\mint-docker-z1:/storage2/dev/z1
+      - C:\Users\pyramidheadshark\Disks\mint-docker-z3:/storage3/dev/z3
+      - C:\Users\pyramidheadshark\Repos\Docker-thingies\qemu-docker\mint\linuxmint-22-cinnamon-64bit.iso:/boot.iso
+    stop_grace_period: 3m
