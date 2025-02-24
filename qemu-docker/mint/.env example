@@ -1,0 +1,7 @@
+MAIN_DISK_PATH=./disks/mint-docker
+DISK2_PATH=./disks/mint-docker-z1
+DISK3_PATH=./disks/mint-docker-z3
+BOOT_ISO_PATH=./linuxmint-22-cinnamon-64bit.iso
+DISK_SIZE=32G
+DISK2_SIZE=2G
+DISK3_SIZE=2G

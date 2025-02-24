@@ -1,12 +1,14 @@
+version: '3.8'
+
 services:
   qemu:
     container_name: qemu-mint
     image: qemux/qemu-docker
     environment:
       BOOT: "https://mirror.hyperdedic.ru/linuxmint/stable/22/linuxmint-22-cinnamon-64bit.iso" # Linux Mint Cinnamon mirror
-      DISK_SIZE: "32G"
-      DISK2_SIZE: "2G"
-      DISK3_SIZE: "2G"
+      DISK_SIZE: ${DISK_SIZE} # <--- Specify main disk size (e.g., 32G)
+      DISK2_SIZE: ${DISK2_SIZE} # <--- Specify 2nd disk size (e.g., 2G), set to 0 to disable
+      DISK3_SIZE: ${DISK3_SIZE} # <--- Specify 3rd disk size (e.g., 2G), set to 0 to disable
       RAM_SIZE: "6G"
       CPU_CORES: "4"
     devices:
@@ -17,8 +19,8 @@ services:
     ports:
       - 8006:8006
     volumes:
-      - C:\Users\pyramidheadshark\Disks\mint-docker:/mnt/c/Users/pyramidheadshark/Disks/mint-docker # Main partition
-      - C:\Users\pyramidheadshark\Disks\mint-docker-z1:/storage2 # 2nd partition
-      - C:\Users\pyramidheadshark\Disks\mint-docker-z3:/storage3 # 3rd partition
-      - C:\Users\pyramidheadshark\Repos\Docker-thingies\qemu-docker\mint\linuxmint-22-cinnamon-64bit.iso:/boot.iso # Boot file
+      - ${MAIN_DISK_PATH}:/mnt/c/Users/pyramidheadshark/Disks/mint-docker # <--- Specify path to main disk directory here
+      - ${DISK2_PATH}:/storage2 # <--- Specify path to 2nd disk directory here
+      - ${DISK3_PATH}:/storage3 # <--- Specify path to 3rd disk directory here
+      - ${BOOT_ISO_PATH}:/boot.iso # <--- Specify path to boot ISO file here
     stop_grace_period: 3m
