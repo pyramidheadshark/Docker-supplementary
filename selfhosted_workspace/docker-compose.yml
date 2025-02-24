@@ -1,0 +1,96 @@
+services:
+  memos:
+    image: neosmemo/memos:stable
+    container_name: memos
+    restart: unless-stopped
+    expose:
+      - 5230/tcp
+    volumes:
+      - memos-data:/var/opt/memos
+
+  planka:
+    image: ghcr.io/plankanban/planka:latest
+    container_name: planka
+    restart: on-failure
+    expose:
+      - 1337
+    environment:
+      - BASE_URL=http://localhost:1337
+      - DATABASE_URL=postgresql://postgres@postgres/planka
+      - SECRET_KEY=ADD_SECRET_KEY_BASE64
+      - DEFAULT_ADMIN_EMAIL=pyramidheadshark@gmail.com
+      - DEFAULT_ADMIN_PASSWORD=14774773Su
+      - DEFAULT_ADMIN_NAME=Nikita Smirnov
+      - DEFAULT_ADMIN_USERNAME=pyramidheadshark
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: planka-postgres
+    restart: on-failure
+    volumes:
+      - planka-db-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=planka
+      - POSTGRES_HOST_AUTH_METHOD=trust
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d planka"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  caddy:
+    image: caddy:2.8
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - 0.0.0.0:80:80/tcp
+      - 0.0.0.0:443:443/tcp
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+      - caddy-logs:/logs
+    configs:
+      - source: Caddyfile
+        target: /etc/caddy/Caddyfile
+    depends_on:
+      - memos
+      - planka
+
+configs:
+  Caddyfile:
+    content: |
+      EXAMPLE.EXAMPLE.COM {
+        log {
+          output file /logs/caddy.log {
+            roll_size 10mb
+            roll_keep 20
+            roll_keep_for 7d
+          }
+        }
+
+        route /memos* {
+          reverse_proxy memos:5230
+        }
+
+        route /planka* {
+          reverse_proxy planka:1337
+        }
+
+        route {
+          reverse_proxy memos:5230
+        }
+
+        encode zstd gzip
+      }
+
+volumes:
+  memos-data:
+  planka-user-avatars:
+  planka-project-background-images:
+  planka-attachments:
+  planka-db-data:
+  caddy-data:
+  caddy-config:
+  caddy-logs:
