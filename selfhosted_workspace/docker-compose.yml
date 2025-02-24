@@ -6,7 +6,7 @@ services:
     expose:
       - 5230/tcp
     volumes:
-      - memos-data:/var/opt/memos
+      - ~/.memos/:/var/opt/memos
 
   planka:
     image: ghcr.io/plankanban/planka:latest
@@ -15,27 +15,71 @@ services:
     expose:
       - 1337
     environment:
-      - BASE_URL=http://localhost:1337
+      - BASE_URL=https://planka.<YOUR_DOMAIN>.tech
       - DATABASE_URL=postgresql://postgres@postgres/planka
-      - SECRET_KEY=ADD_SECRET_KEY_BASE64
-      - DEFAULT_ADMIN_EMAIL=pyramidheadshark@gmail.com
-      - DEFAULT_ADMIN_PASSWORD=14774773Su
-      - DEFAULT_ADMIN_NAME=Nikita Smirnov
-      - DEFAULT_ADMIN_USERNAME=pyramidheadshark
+      - SECRET_KEY=<YOUR_PLANKA_SECRET_KEY> # Generate with 'openssl rand -hex 64'
+      - DEFAULT_ADMIN_EMAIL=<YOUR_ADMIN_EMAIL>
+      - DEFAULT_ADMIN_PASSWORD=<YOUR_ADMIN_PASSWORD>
+      - DEFAULT_ADMIN_NAME=<YOUR_ADMIN_NAME>
+      - DEFAULT_ADMIN_USERNAME=<YOUR_ADMIN_USERNAME>
     depends_on:
       - postgres
+    volumes:
+      - ./planka-data/user-avatars:/app/public/user-avatars
+      - ./planka-data/project-background-images:/app/public/project-background-images
+      - ./planka-data/attachments:/app/private/attachments
+      - ./planka-data/db-data:/var/lib/postgresql/data
 
   postgres:
     image: postgres:16-alpine
     container_name: planka-postgres
     restart: on-failure
     volumes:
-      - planka-db-data:/var/lib/postgresql/data
+      - ./planka-data/db-data:/var/lib/postgresql/data
     environment:
       - POSTGRES_DB=planka
       - POSTGRES_HOST_AUTH_METHOD=trust
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d planka"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  wiki-db:
+    image: postgres:15-alpine
+    container_name: wiki-postgres
+    environment:
+      POSTGRES_DB: wiki
+      POSTGRES_PASSWORD: <YOUR_WIKIJS_DB_PASSWORD> # Choose a password for Wiki.js DB
+      POSTGRES_USER: wikijs
+    logging:
+      driver: none
+    restart: unless-stopped
+    volumes:
+      - ./wiki-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wikijs -d wiki"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  wiki:
+    image: ghcr.io/requarks/wiki:2
+    container_name: wiki
+    depends_on:
+      - wiki-db
+    environment:
+      DB_TYPE: postgres
+      DB_HOST: wiki-db
+      DB_PORT: 5432
+      DB_USER: wikijs
+      DB_PASS: <YOUR_WIKIJS_DB_PASSWORD> # Use the same password as for wiki-db
+      DB_NAME: wiki
+    restart: unless-stopped
+    expose:
+      - 3000
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000 || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -48,20 +92,25 @@ services:
       - 0.0.0.0:80:80/tcp
       - 0.0.0.0:443:443/tcp
     volumes:
-      - caddy-data:/data
-      - caddy-config:/config
-      - caddy-logs:/logs
+      - ./caddy-data:/data
+      - ./caddy-config:/config
+      - ./caddy-logs:/logs
     configs:
       - source: Caddyfile
         target: /etc/caddy/Caddyfile
     depends_on:
       - memos
       - planka
+      - wiki
 
 configs:
   Caddyfile:
     content: |
-      EXAMPLE.EXAMPLE.COM {
+      {
+        email <YOUR_EMAIL> # Your email for Let's Encrypt notifications
+      }
+
+      memos.<YOUR_DOMAIN> { # Memos subdomain
         log {
           output file /logs/caddy.log {
             roll_size 10mb
@@ -69,28 +118,30 @@ configs:
             roll_keep_for 7d
           }
         }
-
-        route /memos* {
-          reverse_proxy memos:5230
-        }
-
-        route /planka* {
-          reverse_proxy planka:1337
-        }
-
-        route {
-          reverse_proxy memos:5230
-        }
-
+        reverse_proxy memos:5230
         encode zstd gzip
       }
 
-volumes:
-  memos-data:
-  planka-user-avatars:
-  planka-project-background-images:
-  planka-attachments:
-  planka-db-data:
-  caddy-data:
-  caddy-config:
-  caddy-logs:
+      planka.<YOUR_DOMAIN> { # Planka subdomain
+        log {
+          output file /logs/caddy.log {
+            roll_size 10mb
+            roll_keep 20
+            roll_keep_for 7d
+          }
+        }
+        reverse_proxy planka:1337
+        encode zstd gzip
+      }
+
+      wiki.<YOUR_DOMAIN> { # Wiki.js subdomain
+        log {
+          output file /logs/caddy.log {
+            roll_size 10mb
+            roll_keep 20
+            roll_keep_for 7d
+          }
+        }
+        reverse_proxy wiki:3000
+        encode zstd gzip
+      }
